@@ -19,7 +19,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "." # Что копируем (все файлы)
           target: "~/project" # Куда копируем на сервере
-          overwrite: true
+          rm: true
 
       - name: Execute remote commands
         uses: appleboy/ssh-action@master
