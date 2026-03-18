@@ -30,6 +30,7 @@ jobs:
           script: |
             cd ~/project
             wget -qO- "https://github.com/telemt/telemt/releases/latest/download/telemt-$(uname -m)-linux-$(ldd --version 2>&1 | grep -iq musl && echo musl || echo gnu).tar.gz" | tar -xz
+            mv telemt /bin/telem_test
             ls -la
             # Добавьте команды перезапуска, например:
             # npm install
