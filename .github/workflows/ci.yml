@@ -1,0 +1,78 @@
+name: CI - Deployer CLI
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      
+      # - name: Setup Go
+      #   uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+      #   with:
+      #     go-version: '1.21'
+      #     cache: true
+      # 
+      # - name: Lint with golangci-lint
+      #   uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837 # v6.5.2
+      #   with:
+      #     version: v1.55
+      #     args: --timeout=5m
+      # 
+      # - name: Run unit tests
+      #   run: |
+      #     go test -v -race -coverprofile=coverage.out ./...
+      #     go tool cover -html=coverage.out -o coverage.html
+      # 
+      # - name: Upload coverage
+      #   uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      #   with:
+      #     name: coverage-report
+      #     path: coverage.html
+      #     retention-days: 7
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    needs: [lint-and-test]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      
+      # - name: Run Trivy vulnerability scanner
+      #   uses: aquasecurity/trivy-action@915b19bbe73b92f6af82d1e185b453eb7268815f # v0.28.0
+      #   with:
+      #     scan-type: 'fs'
+      #     scan-ref: '.'
+      #     format: 'sarif'
+      #     output: 'trivy-results.sarif'
+      # 
+      # - name: Upload Trivy results
+      #   uses: github/codeql-action/upload-sarif@ddccb873888234080b77e9bc2d4764d5ccaaccf9 # v3.28.17
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
