@@ -1,0 +1,107 @@
+name: Deploy Service (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        description: 'Name of the service to deploy'
+        required: true
+        type: string
+      environment:
+        description: 'Deployment environment (staging/production)'
+        required: true
+        type: string
+      version:
+        description: 'Service version to deploy'
+        required: true
+        type: string
+      dry-run:
+        description: 'Dry run mode (no actual deployment)'
+        required: false
+        default: false
+        type: boolean
+    
+    secrets:
+      KUBE_CONFIG_STAGING:
+        required: true
+      KUBE_CONFIG_PRODUCTION:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.service-name }} to ${{ inputs.environment }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout deployer code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      
+      - name: Setup deployer environment
+        uses: ./.github/actions/setup-deployer
+        with:
+          version: 'v2.1.0'
+          kube-config: ${{ inputs.environment == 'production' && secrets.KUBE_CONFIG_PRODUCTION || secrets.KUBE_CONFIG_STAGING }}
+      
+      - name: Validate deployment
+        run: |
+          deployer validate \
+            --service ${{ inputs.service-name }} \
+            --version ${{ inputs.version }} \
+            --environment ${{ inputs.environment }}
+      
+      - name: Pre-deployment checks
+        run: |
+          ./scripts/pre-deploy-checks.sh \
+            --service ${{ inputs.service-name }} \
+            --env ${{ inputs.environment }}
+      
+      - name: Deploy service
+        if: inputs.dry-run == false
+        run: |
+          deployer deploy \
+            --service ${{ inputs.service-name }} \
+            --version ${{ inputs.version }} \
+            --environment ${{ inputs.environment }} \
+            --timeout 15m
+        id: deploy
+      
+      - name: Dry run (simulation)
+        if: inputs.dry-run == true
+        run: |
+          deployer plan \
+            --service ${{ inputs.service-name }} \
+            --version ${{ inputs.version }} \
+            --environment ${{ inputs.environment }}
+        id: dryrun
+      
+      - name: Wait for readiness
+        if: inputs.dry-run == false
+        run: |
+          deployer wait \
+            --service ${{ inputs.service-name }} \
+            --environment ${{ inputs.environment }} \
+            --timeout 5m
+      
+      - name: Post-deployment smoke tests
+        if: inputs.dry-run == false
+        run: |
+          ./scripts/smoke-test.sh \
+            --service ${{ inputs.service-name }} \
+            --environment ${{ inputs.environment }}
+      
+      - name: Send deployment notification
+        if: always()
+        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_TITLE: Deployment ${{ job.status }}
+          SLACK_MESSAGE: |
+            Service: ${{ inputs.service-name }}
+            Environment: ${{ inputs.environment }}
+            Version: ${{ inputs.version }}
+            Status: ${{ job.status }}
+            Actor: ${{ github.actor }}
