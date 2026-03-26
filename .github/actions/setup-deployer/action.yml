@@ -1,0 +1,37 @@
+name: 'Setup Deployer Environment'
+description: 'Sets up deployer CLI and its dependencies'
+
+inputs:
+  version:
+    description: 'Deployer version'
+    required: false
+    default: 'latest'
+  kube-config:
+    description: 'Kubeconfig content'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install deployer CLI
+      shell: bash
+      run: |
+        if [[ "${{ inputs.version }}" == "latest" ]]; then
+          echo "echo install deploy cli" | sh
+        else
+          echo "echo install 2 deploy cli" | sh -s -- -v ${{ inputs.version }}
+        fi
+        echo "$HOME/.deployer/bin" >> $GITHUB_PATH
+    
+    - name: Setup kubectl
+      shell: bash
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ inputs.kube-config }}" > $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+    
+    - name: Cache deployer plugins
+      uses: actions/cache@v4
+      with:
+        path: ~/.deployer/plugins
+        key: deployer-plugins-${{ runner.os }}-${{ inputs.version }}
