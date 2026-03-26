@@ -2,7 +2,7 @@ name: Deploy Project
 
 on:
   push:
-    branches: [ main ] # Ветка, при push в которую запускается деплой
+    branches: [ 123main ] # Ветка, при push в которую запускается деплой
 
 jobs:
   deploy:
